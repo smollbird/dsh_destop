@@ -12,7 +12,7 @@
  * - 插件叠加层：config/desktop.patch.yml 存在时作为 --patch 叠加层传入，
  *   可在此声明桌面版专属的插件 / 配置。
  */
-const { app, BrowserWindow, dialog, shell, Menu } = require("electron");
+const { app, BrowserWindow, dialog, shell, Menu, nativeImage } = require("electron");
 const { spawn, execFile } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
@@ -30,6 +30,9 @@ const USER_DATA = app.getPath("userData");
 const WORKSPACE = app.isPackaged ? path.join(USER_DATA, "workspace") : ROOT;
 const LOG_DIR = app.isPackaged ? path.join(USER_DATA, "logs") : path.join(ROOT, "logs");
 const ICON_ICO = path.join(ROOT, "assets", "dsh-desktop.ico");
+const ICON_ICNS = path.join(ROOT, "assets", "dsh-desktop.icns");
+const ICON_ICNS_LEGACY = path.join(ROOT, "assets", "DeepSeek Harness.icns");
+const ICON_PNG = path.join(ROOT, "assets", "icons", "icon-512.png");
 const LOADING_HTML = path.join(ROOT, "assets", "loading.html");
 const PATCH_FILE = path.join(ROOT, "config", "desktop.patch.yml");
 const BOOT_TIMEOUT_MS = 120_000;
@@ -54,8 +57,10 @@ function resolveDshBin() {
     if (p && fs.existsSync(p)) return p;
   }
   throw new Error(
-    "未找到 @deepseek-ai/dsh：请先在项目目录运行 `npm install`（见 README.md），" +
-    "或确认 $DSH_HOME 下已初始化过 web profile。"
+    app.isPackaged
+      ? "安装包内未找到 @deepseek-ai/dsh。请重新打包（确保 electron-builder 包含 node_modules），或联系开发者。"
+      : "未找到 @deepseek-ai/dsh：请先在项目目录运行 `npm install`（见 README.md），" +
+          "或确认 $DSH_HOME 下已初始化过 web profile。"
   );
 }
 
@@ -70,6 +75,9 @@ function resolveNodeExe() {
       process.platform === "win32" ? "node.exe" : path.join("bin", "node")
     );
     if (fs.existsSync(bundled)) return bundled;
+    throw new Error(
+      "安装包内未找到随包分发的 Node（vendor/node）。请重新执行 npm run build:mac 打包。"
+    );
   }
   if (process.env.npm_node_execpath && fs.existsSync(process.env.npm_node_execpath)) {
     return process.env.npm_node_execpath;
@@ -210,8 +218,7 @@ async function ensureServer() {
   try {
     child = spawnDsh(DEFAULT_PORT);
   } catch (err) {
-    dialog.showErrorBox(APP_TITLE, err.message);
-    app.quit();
+    showBootError(err.message);
     return null;
   }
   try {
@@ -240,12 +247,10 @@ async function ensureServer() {
       });
     });
     if (!url) {
-      dialog.showErrorBox(
-        APP_TITLE,
-        "无法启动 DeepSeek Harness 服务。\n\n" +
-          `默认端口 ${DEFAULT_PORT} 被占用且无法自动分配可用端口。日志见 ${path.join(LOG_DIR, "dsh-web.log")}`
+      showBootError(
+        "无法启动 DeepSeek Harness 服务。",
+        `默认端口 ${DEFAULT_PORT} 被占用且无法自动分配可用端口。日志见 ${path.join(LOG_DIR, "dsh-web.log")}`
       );
-      app.quit();
       return null;
     }
     dshProcess = child;
@@ -284,6 +289,51 @@ function shutdownDsh() {
 /* 窗口                                                                */
 /* ------------------------------------------------------------------ */
 
+function resolveAppIconImage() {
+  for (const candidate of [ICON_ICNS, ICON_ICNS_LEGACY, ICON_PNG]) {
+    if (!candidate || !fs.existsSync(candidate)) continue;
+    const image = nativeImage.createFromPath(candidate);
+    if (!image.isEmpty()) return image;
+  }
+  return null;
+}
+
+function applyDockIcon() {
+  if (process.platform !== "darwin" || !app.dock) return;
+  const image = resolveAppIconImage();
+  if (!image) {
+    logLine("dock icon skipped: no loadable icon asset found");
+    return;
+  }
+  try {
+    app.dock.setIcon(image);
+  } catch (err) {
+    logLine(`dock icon skipped: ${err.message}`);
+  }
+}
+
+function resolveWindowIcon() {
+  const image = resolveAppIconImage();
+  if (image) return image;
+  if (fs.existsSync(ICON_ICO)) return ICON_ICO;
+  return undefined;
+}
+
+function focusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  if (process.platform === "darwin") app.focus({ steal: true });
+}
+
+function showBootError(message, detail) {
+  logLine(`boot error: ${message}${detail ? `\n${detail}` : ""}`);
+  focusMainWindow();
+  dialog.showErrorBox(APP_TITLE, detail ? `${message}\n\n${detail}` : message);
+  app.quit();
+}
+
 function isAllowedNavigation(url) {
   if (url.startsWith("file://")) return true;
   if (serverOrigin && url.startsWith(serverOrigin)) return true;
@@ -299,7 +349,7 @@ function createWindow() {
     minHeight: 600,
     show: false,
     title: APP_TITLE,
-    icon: ICON_ICO,
+    icon: resolveWindowIcon(),
     autoHideMenuBar: true,
     backgroundColor: "#0b0d12",
     webPreferences: {
@@ -311,8 +361,15 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(LOADING_HTML);
-  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.loadFile(LOADING_HTML).catch((err) => {
+    showBootError("无法加载启动页", `${LOADING_HTML}\n${err.message}`);
+  });
+  mainWindow.once("ready-to-show", () => focusMainWindow());
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      focusMainWindow();
+    }
+  }, 1500).unref();
 
   // 只允许加载 DSH 自身页面；外部链接交给系统浏览器
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -335,15 +392,54 @@ function createWindow() {
 }
 
 function buildMenu() {
+  const editSubmenu = [
+    { label: "撤销", role: "undo" },
+    { label: "重做", role: "redo" },
+    { type: "separator" },
+    { label: "剪切", role: "cut" },
+    { label: "复制", role: "copy" },
+    { label: "粘贴", role: "paste" },
+    { label: "粘贴并匹配样式", role: "pasteAndMatchStyle" },
+    { label: "删除", role: "delete" },
+    { type: "separator" },
+    { label: "全选", role: "selectAll" },
+  ];
+
   const template = [
+    ...(process.platform === "darwin"
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { label: `关于 ${APP_TITLE}`, role: "about" },
+              { type: "separator" },
+              { role: "services" },
+              { type: "separator" },
+              { label: "隐藏", role: "hide" },
+              { label: "隐藏其他", role: "hideOthers" },
+              { label: "全部显示", role: "unhide" },
+              { type: "separator" },
+              { label: "退出", accelerator: "CmdOrCtrl+Q", role: "quit" },
+            ],
+          },
+        ]
+      : []),
     {
       label: "文件",
       submenu: [
         { label: "重新加载", accelerator: "CmdOrCtrl+R", role: "reload" },
         { label: "开发者工具", accelerator: "CmdOrCtrl+Shift+I", role: "toggleDevTools" },
-        { type: "separator" },
-        { label: "退出", accelerator: "CmdOrCtrl+Q", role: "quit" },
+        ...(process.platform === "win32"
+          ? [
+              { type: "separator" },
+              { label: "退出", accelerator: "Alt+F4", role: "quit" },
+            ]
+          : []),
       ],
+    },
+    {
+      label: "编辑",
+      submenu: editSubmenu,
     },
     {
       label: "视图",
@@ -380,9 +476,7 @@ if (!gotLock) {
       // 决定运行中/固定到任务栏时 Windows 使用哪个图标
       app.setAppUserModelId(APP_USER_MODEL_ID);
     } else if (process.platform === "darwin") {
-      // macOS Dock 图标：优先使用打包/app 资源中的 .icns
-      const icns = path.join(ROOT, "assets", "DeepSeek Harness.icns");
-      if (fs.existsSync(icns)) app.dock.setIcon(icns);
+      applyDockIcon();
     }
     Menu.setApplicationMenu(buildMenu());
     createWindow();
@@ -396,9 +490,7 @@ if (!gotLock) {
       logLine(`loading UI from ${serverOrigin}`);
       if (mainWindow) mainWindow.loadURL(serverOrigin);
     } catch (err) {
-      logLine(`boot error: ${err.stack || err.message}`);
-      dialog.showErrorBox(APP_TITLE, `启动失败：${err.message}`);
-      app.quit();
+      showBootError(`启动失败：${err.message}`);
     }
   });
 

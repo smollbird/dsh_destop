@@ -6,8 +6,10 @@
  * 输出：
  *   assets/dsh-desktop.ico            多尺寸 PNG 条目 ICO（16/24/32/48/64/128/256，Windows）
  *   assets/icons/*.png                各尺寸 PNG（16..1024）
- *   assets/DeepSeek Harness.iconset/  macOS iconset（iconutil 可直接转 .icns）
- *   assets/DeepSeek Harness.icns      macOS .icns（安装了 png2icons 时生成）
+ *   assets/dsh-desktop.iconset/       macOS iconset（iconutil 转 .icns）
+ *   assets/dsh-desktop.icns             macOS .icns（mac 上优先用 iconutil 生成）
+ *   assets/DeepSeek Harness.iconset/  兼容旧路径
+ *   assets/DeepSeek Harness.icns      兼容旧路径
  *
  * 依赖 sharp（用于 SVG 光栅化）。按顺序从以下位置解析：
  *   1. 本项目的 node_modules
@@ -18,13 +20,16 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const { createRequire } = require("node:module");
+const { execFileSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const LOGO_SVG = path.join(ROOT, "assets", "dsh-logo.svg");
 const OUT_ICO = path.join(ROOT, "assets", "dsh-desktop.ico");
 const OUT_DIR = path.join(ROOT, "assets", "icons");
-const OUT_ICONSET_DIR = path.join(ROOT, "assets", "DeepSeek Harness.iconset");
-const OUT_ICNS = path.join(ROOT, "assets", "DeepSeek Harness.icns");
+const OUT_ICONSET_DIR = path.join(ROOT, "assets", "dsh-desktop.iconset");
+const OUT_ICNS = path.join(ROOT, "assets", "dsh-desktop.icns");
+const LEGACY_ICONSET_DIR = path.join(ROOT, "assets", "DeepSeek Harness.iconset");
+const LEGACY_ICNS = path.join(ROOT, "assets", "DeepSeek Harness.icns");
 const SIZES = [16, 24, 32, 48, 64, 128, 256, 512, 1024];
 const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 const ICONSET_FILES = [
@@ -143,20 +148,41 @@ async function main() {
     fs.writeFileSync(path.join(OUT_ICONSET_DIR, name), pngBySize.get(size));
   }
   console.log(`[make-icon] ${OUT_ICONSET_DIR} (${ICONSET_FILES.length} files)`);
+  mirrorIconset(OUT_ICONSET_DIR, LEGACY_ICONSET_DIR);
 
-  // macOS .icns（可选：需要 png2icons）
-  try {
-    const png2icons = require("png2icons");
-    const icns = png2icons.createICNS(pngBySize.get(1024), png2icons.BICUBIC, 0);
-    if (icns) {
-      fs.writeFileSync(OUT_ICNS, icns);
-      console.log(`[make-icon] ${OUT_ICNS} (png2icons)`);
-    } else {
-      console.warn("[make-icon] png2icons.createICNS returned null, skip .icns");
+  if (process.platform === "darwin") {
+    try {
+      execFileSync("iconutil", ["-c", "icns", OUT_ICONSET_DIR, "-o", OUT_ICNS]);
+      console.log(`[make-icon] ${OUT_ICNS} (iconutil)`);
+      fs.copyFileSync(OUT_ICNS, LEGACY_ICNS);
+      console.log(`[make-icon] ${LEGACY_ICNS} (legacy copy)`);
+    } catch (err) {
+      console.warn(`[make-icon] iconutil failed: ${err.message}`);
     }
-  } catch {
-    console.warn("[make-icon] png2icons 未安装，跳过 .icns（macOS 上可运行 `npm i -D png2icons` 后重新生成）");
+  } else {
+    // 非 macOS 可用 png2icons 兜底生成 .icns
+    try {
+      const png2icons = require("png2icons");
+      const icns = png2icons.createICNS(pngBySize.get(1024), png2icons.BICUBIC, 0);
+      if (icns) {
+        fs.writeFileSync(OUT_ICNS, icns);
+        fs.writeFileSync(LEGACY_ICNS, icns);
+        console.log(`[make-icon] ${OUT_ICNS} (png2icons)`);
+      } else {
+        console.warn("[make-icon] png2icons.createICNS returned null, skip .icns");
+      }
+    } catch {
+      console.warn("[make-icon] 非 macOS 且未安装 png2icons，跳过 .icns");
+    }
   }
+}
+
+function mirrorIconset(fromDir, toDir) {
+  fs.mkdirSync(toDir, { recursive: true });
+  for (const [name] of ICONSET_FILES) {
+    fs.copyFileSync(path.join(fromDir, name), path.join(toDir, name));
+  }
+  console.log(`[make-icon] ${toDir} (legacy iconset)`);
 }
 
 main().catch((err) => {

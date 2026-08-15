@@ -16,6 +16,11 @@ files:
   - assets/**
   - config/**
   - package.json
+  # dsh 及生产依赖必须随包分发（普通 node 子进程才能读取；asar 已关闭）
+  - node_modules/**/*
+  - "!node_modules/electron/**"
+  - "!node_modules/electron-builder/**"
+  - "!node_modules/png2icons/**"
 extraResources:
   - from: vendor/node
     to: vendor/node
@@ -33,6 +38,6 @@ mac:
   target:
     - dmg
     - zip
-  icon: assets/DeepSeek Harness.icns
+  icon: assets/dsh-desktop.icns
   category: public.app-category.developer-tools
   darkModeSupport: true

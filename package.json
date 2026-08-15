@@ -8,10 +8,11 @@
   "scripts": {
     "start": "electron .",
     "make:icon": "node scripts/make-icon.js",
-    "build:win": "electron-builder --win",
-    "build:win:nsis": "electron-builder --win nsis",
-    "build:win:zip": "electron-builder --win zip",
-    "build:mac": "electron-builder --mac"
+    "build:win": "node scripts/ensure-vendor-node.js && electron-builder --win",
+    "build:win:nsis": "node scripts/ensure-vendor-node.js && electron-builder --win nsis",
+    "build:win:zip": "node scripts/ensure-vendor-node.js && electron-builder --win zip",
+    "build:mac": "node scripts/ensure-vendor-node.js && electron-builder --mac",
+    "postinstall": "install-electron"
   },
   "dependencies": {
     "@deepseek-ai/dsh": "0.1.0-rc.6"

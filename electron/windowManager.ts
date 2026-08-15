@@ -6,7 +6,7 @@
  * - 窗口状态记忆：位置 / 尺寸 / 最大化，重启后恢复（USER_DATA/window-state.json）
  * - 关闭时最小化到托盘（不退出）
  * - 导航守卫：外部链接交给系统浏览器
- * - macOS 无边框标题栏（titleBarStyle: hiddenInset）
+ * - 原生默认标题栏（各平台系统默认，拖拽 / 双击缩放等交给系统处理）
  */
 import { BrowserWindow, app, nativeImage, shell } from "electron";
 import fs from "node:fs";
@@ -107,8 +107,6 @@ export class WindowManager {
       icon: this.resolveWindowIcon(),
       autoHideMenuBar: true,
       backgroundColor: "#0b0d12",
-      titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-      trafficLightPosition: { x: 14, y: 12 },
       webPreferences: {
         preload: path.join(__dirname, "preload.js"),
         contextIsolation: true,

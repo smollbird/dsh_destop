@@ -1,0 +1,38 @@
+# electron-builder packaging config
+# Windows build (on Windows):  npx electron-builder --win
+# macOS build (ON a Mac):      npx electron-builder --mac
+appId: com.deepseek.dsh-desktop
+productName: DeepSeek Harness Desktop
+directories:
+  output: dist
+# 不用 asar：主进程会 spawn 一个普通 node 进程来跑 dsh，它读不了 asar 内的文件
+asar: false
+# 不按 Electron ABI 重建原生模块：dsh 由随包分发的 node（vendor/node，系统 Node ABI）运行
+npmRebuild: false
+# 复用本地 node_modules/electron/dist，避免 electron-builder 重复下载 Electron
+electronDist: node_modules/electron/dist
+files:
+  - electron/**
+  - assets/**
+  - config/**
+  - package.json
+extraResources:
+  - from: vendor/node
+    to: vendor/node
+win:
+  target:
+    - nsis
+    - zip
+  icon: assets/dsh-desktop.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: DeepSeek Harness 桌面版
+mac:
+  target:
+    - dmg
+    - zip
+  icon: assets/DeepSeek Harness.icns
+  category: public.app-category.developer-tools
+  darkModeSupport: true

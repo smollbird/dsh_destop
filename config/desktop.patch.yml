@@ -1,0 +1,13 @@
+# dsh-desktop 桌面版插件叠加层
+#
+# 该文件存在时，会作为 `--patch` 叠加层传给 `dsh web`，
+# 顺序在所有 profile bundle 与 $DSH_HOME 用户层之后。
+# 在这里可以启用 / 覆盖 / 插入桌面版专属的插件与配置：
+#
+# 例如启用一个额外的插件（需先装入 profile，见 README「插件管理」）：
+#   - id: my-plugin
+#     config:
+#       foo: bar
+#
+# 空数组 = 不叠加任何内容。
+[]

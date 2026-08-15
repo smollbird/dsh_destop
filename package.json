@@ -1,0 +1,24 @@
+{
+  "name": "dsh-desktop",
+  "version": "1.0.0",
+  "description": "Electron desktop shell for DeepSeek Harness web UI (boots dsh web profile: dsh-base + dsh-web-app plugin stack)",
+  "main": "electron/main.js",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "make:icon": "node scripts/make-icon.js",
+    "build:win": "electron-builder --win",
+    "build:win:nsis": "electron-builder --win nsis",
+    "build:win:zip": "electron-builder --win zip",
+    "build:mac": "electron-builder --mac"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.0-rc.6"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
+    "png2icons": "^2.0.1"
+  }
+}

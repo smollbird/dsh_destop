@@ -1,0 +1,8 @@
+node_modules/
+.npm-cache/
+.electron-cache/
+.dsh-test/
+logs/
+dist/
+vendor/
+*.log

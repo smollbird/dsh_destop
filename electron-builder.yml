@@ -12,11 +12,12 @@ npmRebuild: false
 # 复用本地 node_modules/electron/dist，避免 electron-builder 重复下载 Electron
 electronDist: node_modules/electron/dist
 # 自动更新发布源（Phase 4）：electron-updater 读取打包生成的 app-update.yml
+# 公开仓库无需 token；首次检查前需先在 GitHub 上发布一个 Release
+# （产物需包含 latest.yml / latest-mac.yml 及安装包，可先用测试版本发布）。
 publish:
   provider: github
   owner: smollbird
   repo: dsh_destop
-  private: false
 files:
   - dist-electron/**
   - assets/**

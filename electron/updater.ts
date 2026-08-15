@@ -69,11 +69,12 @@ export class UpdaterManager extends EventEmitter {
       this.dsh.logLine(`updater error: ${err.message}`);
       this.setStatus({ state: "error", error: err.message });
       if (!this.quietCheck) {
+        const detail = this.friendlyError(err);
         dialog.showMessageBox({
           type: "error",
           title: APP_TITLE,
           message: "检查更新失败",
-          detail: `${err.message}\n\n可稍后从「帮助 → 检查应用更新…」重试。`,
+          detail: `${detail}\n\n可稍后从「帮助 → 检查应用更新…」重试。`,
         });
       }
     });
@@ -90,6 +91,34 @@ export class UpdaterManager extends EventEmitter {
   private setStatus(status: UpdateStatus): void {
     this.status = status;
     this.emit("status", { ...status });
+  }
+
+  /**
+   * 把 electron-updater 的原始报错转成可操作的提示。
+   * GitHub 对「私有仓库匿名访问」和「不存在的仓库」都返回 404 ——
+   * 这里识别典型场景（404 / 找不到更新元数据）并给出指引。
+   */
+  private friendlyError(err: Error): string {
+    const raw = err.message || String(err);
+    if (/404|releases\.atom|Not Found|not found/i.test(raw) && raw.includes("github.com")) {
+      return (
+        "无法访问 GitHub 发布源（404）。\n\n" +
+        "可能原因：\n" +
+        "1. 发布仓库不存在、被删除或为私有（匿名访问返回 404 是 GitHub 的隐私保护）；\n" +
+        "2. 网络无法访问 GitHub（可稍后重试）。\n\n" +
+        "请确认仓库「smollbird/dsh_destop」存在且为公开，或联系开发者配置正确的发布源。\n\n" +
+        `原始错误：${raw}`
+      );
+    }
+    if (/latest\.yml|latest-mac\.yml|Cannot find|no such file/i.test(raw)) {
+      return (
+        "发布源可用，但仓库中还没有可用的更新版本。\n\n" +
+        "请先在 GitHub Releases 发布一个包含更新元数据（latest.yml / latest-mac.yml）" +
+        "的版本，之后即可正常检查更新。\n\n" +
+        `原始错误：${raw}`
+      );
+    }
+    return raw;
   }
 
   private promptAvailable(version: string): void {

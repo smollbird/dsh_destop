@@ -141,9 +141,13 @@ npm install           # 必须：同步依赖（file: 本地插件等）
   安装到用户数据目录 `USER_DATA/kernel/<版本>/`，成功后自动重启服务。
   内核文件在用户数据目录，卸载/覆盖安装应用不影响；若升级目录损坏或
   打包自带内核更新，会自动回退到打包自带版本。
-- 分发给终端用户的更新：目前未配置自动更新（electron-updater），
-  重新打包后把新安装包发给用户覆盖安装即可（用户数据在
-  `%APPDATA%` / `~/Library/Application Support` 下，不会被覆盖）。
+- **应用自动更新（electron-updater）**：已配置 GitHub Releases 发布源
+  （`electron-builder.yml` 的 `publish`，公开仓库 `smollbird/dsh_destop`）。
+  首次检查前需先在 GitHub Releases 发布一个版本，产物需包含更新元数据
+  （`latest.yml` / `latest-mac.yml`）和安装包 —— 可用 `npm run build:mac`
+  等命令打包后上传 Release。公开仓库无需 token。
+- **分发给终端用户的更新**：重新打包后把新安装包发给用户覆盖安装即可
+  （用户数据在 `%APPDATA%` / `~/Library/Application Support` 下，不会被覆盖）。
   用户也可以在应用内用「检查内核更新」升级内核功能。
 
 ## 配置

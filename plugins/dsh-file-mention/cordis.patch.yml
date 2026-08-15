@@ -1,0 +1,9 @@
+# dsh-file-mention bundle patch: inserts the dual-face plugin row into the web
+# profile roster. The node half (exports ".") runs in the host process and
+# serves the workspace file tree at /file-mention/list; the `dsh.client`
+# declaration in package.json makes the browser half (exports "./client",
+# served at /plugins/file-mention/client.js) load in the web GUI, where it
+# registers the '@' input-trigger source.
+- insert:
+    - id: file-mention
+      name: 'dsh-file-mention'

@@ -879,37 +879,50 @@ export class DshManager {
     await this.waitForServer(url, timeoutMs, this.process);
   }
 
-  /** 终止 dsh 子进程及其进程树。 */
+  /** 终止 dsh 子进程及其进程树（含复用/残留的旧服务）。 */
   shutdown(): void {
-    if (!this.process || this.process.killed) return;
-    const pid = this.process.pid;
-    if (pid === undefined) return;
-    this.logLine(`shutting down dsh web (pid=${pid})`);
-    try {
-      if (process.platform === "win32") {
-        this.process.kill();
-        // Windows 上递归终止整个进程树，确保 pwsh/bash 子进程也被回收
-        execFile("taskkill", ["/pid", String(pid), "/T", "/F"], () => {
-          /* noop */
-        });
-      } else {
-        // POSIX: 终止整个进程组（spawn 时 detached 启动）
+    // 本实例 spawn 的服务：终止整个进程组（spawn 时 detached 启动）
+    if (this.process && !this.process.killed) {
+      const pid = this.process.pid;
+      if (pid !== undefined) {
+        this.logLine(`shutting down dsh web (pid=${pid})`);
         try {
-          process.kill(-pid, "SIGTERM");
-        } catch {
-          this.process.kill("SIGTERM");
-        }
-        // 3 秒后仍未退出则强杀
-        setTimeout(() => {
-          try {
-            process.kill(-pid, "SIGKILL");
-          } catch {
-            /* 已退出 */
+          if (process.platform === "win32") {
+            this.process.kill();
+            // Windows 上递归终止整个进程树，确保 pwsh/bash 子进程也被回收
+            execFile("taskkill", ["/pid", String(pid), "/T", "/F"], () => {
+              /* noop */
+            });
+          } else {
+            // POSIX: 终止整个进程组（spawn 时 detached 启动）
+            try {
+              process.kill(-pid, "SIGTERM");
+            } catch {
+              this.process.kill("SIGTERM");
+            }
+            // 3 秒后仍未退出则强杀
+            setTimeout(() => {
+              try {
+                process.kill(-pid, "SIGKILL");
+              } catch {
+                /* 已退出 */
+              }
+            }, 3000).unref();
           }
-        }, 3000).unref();
+        } catch {
+          /* noop */
+        }
       }
-    } catch {
-      /* noop */
+    }
+    // 复用/残留模式（服务非本实例 spawn，this.process 为空）：退出时不清理
+    // 的话旧 dsh web 会一直占着默认端口，下次启动命中 “reuse existing” 而复用
+    // 旧代码（插件 host 半不更新）。端口上确认是 DSH 实例才终止，避免误杀。
+    if (!this.process || this.process.killed) {
+      void (async () => {
+        if (await this.probeIsDsh(`http://127.0.0.1:${DEFAULT_PORT}`)) {
+          await this.killPortOwner(DEFAULT_PORT);
+        }
+      })();
     }
   }
 

@@ -1,0 +1,9 @@
+# dsh-settings-tabs bundle patch: inserts the dual-face plugin row into the web
+# profile roster. The node half (exports ".") serves the /settings-tabs/*
+# datasets (skill catalog + MCP instances); the `dsh.client` declaration in
+# package.json makes the browser half (exports "./client", served at
+# /plugins/dsh-settings-tabs/client.js) load in the web GUI, where it registers
+# the Skills and MCP tabs into the Plugins settings section.
+- insert:
+    - id: settings-tabs
+      name: 'dsh-settings-tabs'

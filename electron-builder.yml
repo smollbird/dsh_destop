@@ -11,10 +11,17 @@ asar: false
 npmRebuild: false
 # 复用本地 node_modules/electron/dist，避免 electron-builder 重复下载 Electron
 electronDist: node_modules/electron/dist
+# 自动更新发布源（Phase 4）：electron-updater 读取打包生成的 app-update.yml
+publish:
+  provider: github
+  owner: smollbird
+  repo: dsh_destop
+  private: false
 files:
-  - electron/**
+  - dist-electron/**
   - assets/**
   - config/**
+  - src/plugin-ui/**
   - package.json
   # dsh 及生产依赖必须随包分发（普通 node 子进程才能读取；asar 已关闭）
   - node_modules/**/*

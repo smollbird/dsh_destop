@@ -2,17 +2,20 @@
   "name": "dsh-desktop",
   "version": "1.0.0",
   "description": "Electron desktop shell for DeepSeek Harness web UI (boots dsh web profile: dsh-base + dsh-web-app plugin stack)",
-  "main": "electron/main.js",
+  "main": "dist-electron/main.js",
   "private": true,
   "author": "smollbird",
   "license": "MIT",
   "scripts": {
-    "start": "electron .",
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "start": "npm run build && electron .",
     "make:icon": "node scripts/make-icon.js",
-    "build:win": "node scripts/ensure-vendor-node.js && electron-builder --win",
-    "build:win:nsis": "node scripts/ensure-vendor-node.js && electron-builder --win nsis",
-    "build:win:zip": "node scripts/ensure-vendor-node.js && electron-builder --win zip",
-    "build:mac": "node scripts/ensure-vendor-node.js && electron-builder --mac",
+    "build:win": "npm run build && node scripts/ensure-vendor-node.js && electron-builder --win",
+    "build:win:nsis": "npm run build && node scripts/ensure-vendor-node.js && electron-builder --win nsis",
+    "build:win:zip": "npm run build && node scripts/ensure-vendor-node.js && electron-builder --win zip",
+    "build:mac": "npm run build && node scripts/ensure-vendor-node.js && electron-builder --mac",
+    "build:linux": "npm run build && node scripts/ensure-vendor-node.js && electron-builder --linux",
     "postinstall": "install-electron"
   },
   "dependencies": {
@@ -37,7 +40,9 @@
     "@deepseek-ai/dsh-subprocess": "0.1.0-rc.6",
     "@deepseek-ai/dsh-timeout": "0.1.0-rc.6",
     "@deepseek-ai/dsh-workflow": "0.1.0-rc.6",
-    "npm": "^11.19.0"
+    "electron-updater": "^6.8.9",
+    "npm": "^11.19.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

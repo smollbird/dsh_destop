@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>插件管理 — DeepSeek Harness 桌面版</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo">
+        <rect x="1.5" y="1.5" width="47" height="47" rx="11.5" fill="#4d6bfe"/>
+        <path d="M30 13h4v10h7v4h-7v10h-4V27h-9v10h-4V27H9v-4h8V13h4v10h9V13z" fill="#fff"/>
+      </svg>
+      <div>
+        <h1>插件管理</h1>
+        <p class="sub">管理 DSH profile 的插件：安装 / 卸载 / 启用 / 停用</p>
+      </div>
+    </div>
+    <div class="toolbar">
+      <label class="field">
+        <span>Profile</span>
+        <select id="profileSelect" title="切换 profile（web / cli / 其他）"></select>
+      </label>
+      <button id="refreshBtn" class="btn" title="重新读取插件列表">刷新列表</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel install-panel">
+      <div class="panel-title">安装插件</div>
+      <div class="install-row">
+        <input id="pkgInput" type="text" placeholder="输入 npm 包名或 GitHub 仓库地址，如 @deepseek-ai/dsh-fs 或 owner/repo" spellcheck="false" />
+        <button id="installBtn" class="btn primary">安装</button>
+      </div>
+      <div class="search-row">
+        <input id="searchInput" type="text" placeholder="搜索社区插件（GitHub topic:dsh-plugin）" spellcheck="false" />
+        <button id="searchBtn" class="btn">搜索</button>
+      </div>
+      <div id="searchResults" class="search-results hidden"></div>
+    </section>
+
+    <section class="panel list-panel">
+      <div class="panel-title">
+        已安装插件
+        <span id="listStatus" class="status-hint"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="pluginTable">
+          <thead>
+            <tr>
+              <th class="col-name">插件</th>
+              <th class="col-version">版本</th>
+              <th class="col-source">来源</th>
+              <th class="col-status">状态</th>
+              <th class="col-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody id="pluginBody">
+            <tr><td colspan="5" class="empty">加载中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel log-panel">
+      <div class="panel-title">
+        操作日志
+        <span class="status-hint">安装 / 卸载 / 启用后需「重启服务」生效</span>
+      </div>
+      <div id="logBox" class="log-box" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <button id="restartBtn" class="btn primary" title="重启 DSH 服务使插件变更生效">重启服务</button>
+    <span id="restartHint" class="status-hint"></span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

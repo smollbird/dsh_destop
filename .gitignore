@@ -4,5 +4,6 @@ node_modules/
 .dsh-test/
 logs/
 dist/
+dist-electron/
 vendor/
 *.log

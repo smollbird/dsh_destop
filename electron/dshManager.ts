@@ -10,6 +10,7 @@
  */
 import { app, dialog } from "electron";
 import { ChildProcess, execFile, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
@@ -592,6 +593,140 @@ export class DshManager {
       req.on("timeout", () => req.destroy());
       req.on("error", () => resolve(null));
     });
+  }
+
+  /** POST JSON 到服务地址并解析响应（不抛错，失败返回 null）。 */
+  private httpPost(
+    url: string,
+    body: unknown,
+    timeoutMs = 5000
+  ): Promise<{ status: number; body: string } | null> {
+    return new Promise((resolve) => {
+      const req = http.request(
+        url,
+        {
+          method: "POST",
+          timeout: timeoutMs,
+          headers: { "content-type": "application/json" },
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (c) => chunks.push(c as Buffer));
+          res.on("end", () => {
+            resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8") });
+          });
+        }
+      );
+      req.on("timeout", () => req.destroy());
+      req.on("error", () => resolve(null));
+      req.end(JSON.stringify(body));
+    });
+  }
+
+  /**
+   * 调用 DSH Web API（workspace.list / session.list 等，与 Web UI 相同的
+   * client-request 信封协议）。成功返回 result.value，失败（未就绪 / 非 2xx /
+   * 信封校验失败）返回 null，不抛错。
+   */
+  private async apiCall<T>(
+    method: string,
+    payload: unknown,
+    timeoutMs = 5000
+  ): Promise<T | null> {
+    const origin = this.serverOrigin;
+    if (!origin) return null;
+    const rpcId = randomUUID();
+    const res = await this.httpPost(
+      `${origin}/api/${method}`,
+      { type: "client-request", rpcId, method, payload },
+      timeoutMs
+    );
+    if (!res) return null;
+    try {
+      const envelope = JSON.parse(res.body) as {
+        rpcId?: unknown;
+        result?: { ok?: unknown; value?: unknown };
+      };
+      if (envelope.rpcId !== rpcId || envelope.result?.ok !== true) return null;
+      return (envelope.result.value ?? null) as T | null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 当前工作区目录（用户在 Web UI 里正在使用的那一个），按优先级：
+   * 1) UI 当前打开的对话（主进程从页面 localStorage 读到 `dsh.sessions.current`
+   *    的 sessionId）所在的 cwd —— 与用户正看着的对话严格一致；
+   * 2) 回退：最近活跃的非空白、非 subagent 会话所在的 cwd
+   *    （空白/子代理会话是后台噪音，不参与“用户当前在哪”的判定）；
+   * 3) 再回退：工作区注册表里最近活跃的工作区（判定与 Web UI 的 recentWorkspace
+   *    一致：会话 updatedAt 最新者胜出，无会话时取 createdAt，并列保持注册表顺序）。
+   * 目录已不存在的会被跳过；全部落空 / 服务未就绪时返回 null（调用方回退到 WORKSPACE）。
+   *
+   * @param preferredSessionId - Web UI 当前打开的会话 id（可为 null）。
+   */
+  async currentWorkspacePath(preferredSessionId: string | null = null): Promise<string | null> {
+    const sessions =
+      (await this.apiCall<{
+        items?: Array<{
+          sessionId: string;
+          updatedAt: number;
+          cwd?: string;
+          blank?: boolean;
+          origin?: string;
+        }>;
+      }>("session.list", {}))?.items ?? [];
+    const byId = new Map(sessions.map((s) => [s.sessionId, s]));
+    // 1) UI 当前打开的对话
+    if (preferredSessionId) {
+      const s = byId.get(preferredSessionId);
+      if (s?.cwd && this.isDirectory(s.cwd)) return s.cwd;
+    }
+    // 2) 最近活跃的用户会话（排除空白 / 子代理噪音）
+    const ranked = [...sessions]
+      .filter((s) => !s.blank && s.origin !== "subagent")
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    for (const s of ranked) {
+      if (s.cwd && this.isDirectory(s.cwd)) return s.cwd;
+    }
+    // 3) 工作区注册表（recentWorkspace 判定）
+    const list = await this.apiCall<{
+      items?: Array<{
+        workspaceId: string;
+        path: string;
+        createdAt: string;
+        sessionIds: string[];
+      }>;
+    }>("workspace.list", {});
+    const items = list?.items ?? [];
+    const rankedWorkspaces = items
+      .map((w, order) => {
+        let latest = Number.NEGATIVE_INFINITY;
+        for (const sid of w.sessionIds) {
+          const s = byId.get(sid);
+          if (s) latest = Math.max(latest, s.updatedAt);
+        }
+        if (latest === Number.NEGATIVE_INFINITY) {
+          const created = Date.parse(w.createdAt);
+          latest = Number.isNaN(created) ? Number.NEGATIVE_INFINITY : created;
+        }
+        return { w, latest, order };
+      })
+      .sort((a, b) => b.latest - a.latest || a.order - b.order);
+    for (const { w } of rankedWorkspaces) {
+      if (this.isDirectory(w.path)) return w.path;
+    }
+    return null;
+  }
+
+  /** 目录是否真实存在。 */
+  private isDirectory(p: string): boolean {
+    try {
+      return fs.statSync(p).isDirectory();
+    } catch {
+      return false;
+    }
   }
 
   /** 探测某地址是否已经是 DSH 的 Web UI。 */

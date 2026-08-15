@@ -69,10 +69,7 @@ const windowManager = new WindowManager(dsh, {
 
 const trayManager = new TrayManager(dsh, {
   onShowMain: () => windowManager.focus(),
-  onOpenWorkspace: () => {
-    fs.mkdirSync(WORKSPACE, { recursive: true });
-    shell.openPath(WORKSPACE);
-  },
+  onOpenWorkspace: () => void openCurrentWorkspace(),
   onNewTask: () => {
     // 聚焦主窗口并广播事件；preload 会把它翻译为点击 DSH Web UI 的「新建会话」按钮
     windowManager.focus();
@@ -196,6 +193,68 @@ function resolveWindowIcon(): Electron.NativeImage | string | undefined {
 }
 
 /* ------------------------------------------------------------------ */
+/* 工作区（托盘 / 菜单「打开工作区」共用）                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 从 Web UI 页面读取「当前打开的对话」id：
+ * Web UI 客户端把当前会话持久化在 localStorage 的 `dsh.sessions.current`
+ * （{ sessionId, subagentAddress? }），跟随用户在界面里的切换实时更新 ——
+ * 这是"用户现在正在看哪个对话"的唯一权威来源。
+ * 窗口还在启动页 / 服务尚未就绪时读取不到，稍等重试。
+ */
+async function readCurrentSessionId(win: BrowserWindow | null): Promise<string | null> {
+  if (!win || win.isDestroyed()) return null;
+  const read = async (): Promise<string | null> => {
+    try {
+      const raw = await win.webContents.executeJavaScript(
+        `(() => { try { const v = localStorage.getItem("dsh.sessions.current"); if (!v) return null; const o = JSON.parse(v); return typeof o?.sessionId === "string" ? o.sessionId : null; } catch { return null; } })()`
+      );
+      return typeof raw === "string" ? raw : null;
+    } catch {
+      return null;
+    }
+  };
+  let id = await read();
+  if (id) return id;
+  // UI 尚未加载（启动页 / 服务启动中）：等它就绪后再读，最多约 5 秒
+  const origin = dsh.origin;
+  for (let i = 0; i < 5 && !id; i++) {
+    if (origin && win.webContents.getURL().startsWith(origin)) break; // UI 已加载但无当前会话
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    id = await read();
+  }
+  return id;
+}
+
+/**
+ * 在 Finder / 资源管理器中打开当前工作区目录：
+ * 优先打开 Web UI 中「当前打开的对话」所在的工作区（见 DshManager.currentWorkspacePath），
+ * 全部回退落空时打开服务工作目录 WORKSPACE。
+ */
+async function openCurrentWorkspace(): Promise<void> {
+  const sessionId = await readCurrentSessionId(windowManager.window);
+  const target = (await dsh.currentWorkspacePath(sessionId)) ?? WORKSPACE;
+  try {
+    fs.mkdirSync(target, { recursive: true });
+  } catch {
+    /* noop */
+  }
+  const error = await shell.openPath(target);
+  if (error) {
+    dsh.logLine(`open workspace failed (${target}): ${error}`);
+    if (target !== WORKSPACE) {
+      try {
+        fs.mkdirSync(WORKSPACE, { recursive: true });
+      } catch {
+        /* noop */
+      }
+      await shell.openPath(WORKSPACE);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* 菜单                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -306,10 +365,7 @@ function buildMenu(): Menu {
         { type: "separator" },
         {
           label: "打开工作区目录",
-          click: () => {
-            fs.mkdirSync(WORKSPACE, { recursive: true });
-            shell.openPath(WORKSPACE);
-          },
+          click: () => void openCurrentWorkspace(),
         },
       ],
     },

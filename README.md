@@ -157,7 +157,10 @@ npm install           # 必须：同步依赖（file: 本地插件等）
 - **工作目录**：开发模式 = 项目根目录；打包安装版 = 用户数据目录下的
   `workspace`（`%APPDATA%\DeepSeek Harness Desktop\workspace` 或
   `~/Library/Application Support/DeepSeek Harness Desktop/workspace`），
-  与安装目录无关（应用菜单「帮助 → 打开工作区目录」可直达）。
+  与安装目录无关。托盘「打开工作区」/ 菜单「帮助 → 打开工作区目录」
+  会打开 Web UI 中**当前打开的对话**所在的工作区目录（读取 UI 的当前会话，
+  与界面里正在看的对话严格一致）；UI 未就绪时回退到最近活跃的工作区，
+  最后才回退到上面的服务工作目录。
 - **DSH_HOME**：默认 `~/.dsh`，可用环境变量覆盖。
 
 ## 打包分发（给其他电脑安装）

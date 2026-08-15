@@ -16,10 +16,9 @@
     "postinstall": "install-electron"
   },
   "dependencies": {
-    "@deepseek-ai/dsh": "0.1.0-rc.6",
-    "dsh-editor-open": "file:plugins/dsh-editor-open",
     "@cfworker/json-schema": "^4.1.1",
     "@deepseek-ai/cordis-plugin-group": "^1.0.1",
+    "@deepseek-ai/dsh": "0.1.0-rc.6",
     "@deepseek-ai/dsh-anonymous-user-id": "0.1.0-rc.6",
     "@deepseek-ai/dsh-atomic-write": "0.1.0-rc.6",
     "@deepseek-ai/dsh-bash-local": "0.1.0-rc.6",
@@ -37,11 +36,14 @@
     "@deepseek-ai/dsh-subagent-in-process-driver": "0.1.0-rc.6",
     "@deepseek-ai/dsh-subprocess": "0.1.0-rc.6",
     "@deepseek-ai/dsh-timeout": "0.1.0-rc.6",
-    "@deepseek-ai/dsh-workflow": "0.1.0-rc.6"
+    "@deepseek-ai/dsh-workflow": "0.1.0-rc.6",
+    "npm": "^11.19.0"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
-    "png2icons": "^2.0.1"
+    "png2icons": "^2.0.1",
+    "typescript": "^5.9.3"
   }
 }

@@ -8,17 +8,6 @@
 #   - id: my-plugin
 #     config:
 #       foo: bar
-
-# 桌面版快捷操作：在 Session 头部「Session log」按钮左侧添加「打开编辑器」，
-# 用本机编辑器打开 dsh web 的工作目录（默认 = 启动目录，即项目根目录）。
-# 插件包位于 plugins/dsh-editor-open，已通过 package.json 的 file: 依赖链接。
-- insert:
-    - id: editor-open
-      name: dsh-editor-open
-      config:
-        # 依次探测可用的编辑器命令，取第一个存在于 PATH 的。
-        editor:
-          - code
-          - cursor
-        # 可选：固定工作目录（默认 = dsh web 进程的启动目录）。
-        # cwd: D:/project/dsh-destop
+#
+# 空数组 = 不叠加任何内容。
+[]

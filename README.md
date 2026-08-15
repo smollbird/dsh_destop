@@ -10,7 +10,7 @@ session、skills、goal、subagent、workflow 等），随后在桌面窗口中�
 - **插件集成**：以项目内安装的 `@deepseek-ai/dsh` CLI 作为启动器 boot web profile，
   插件清单见 `dsh web --dump-default-config`；额外插件可通过 `config/desktop.patch.yml` 叠加层启用。
 - **单实例**：重复双击图标只会聚焦已打开的窗口，不会重复启动服务。
-- **端口复用**：默认端口 `3141` 已被 DSH 实例占用时直接连接该实例。
+- **端口复用**：默认端口 `3400` 已被 DSH 实例占用时直接连接该实例。
 - **原生体验**：官方 DSH logo 系统图标（任务栏/固定图标通过 `System.AppUserModel.ID` 关联）、
   外部链接交给系统浏览器、退出时自动回收 dsh 进程树。
 - **跨平台**：Windows / macOS 均可运行（macOS 见下文）。
@@ -119,11 +119,41 @@ dsh-destop/
 
   重启桌面版生效。叠加层语法与 `dsh --patch` 一致（loader patch 条目数组）。
 
+## 更新与同步
+
+本仓库以 GitHub 为远端（`origin` = `git@github.com:smollbird/dsh_destop.git`），
+在其他电脑 / 服务器上改完推上去后，在本机同步：
+
+```bash
+git pull              # 拉取最新代码（含 plugins/、config/、electron/ 等改动）
+npm install           # 必须：同步依赖（file: 本地插件等）
+```
+
+- 本机有未提交改动时先 `git status` 确认，或 `git stash` 暂存后再 pull。
+- 改完本机代码要发出去：`git add -A && git commit -m "..." && git push`。
+- **改完代码必须重新打包**，安装包不会自动更新：`npm run build:mac`（Mac）
+  或 `npm run build:win`（Windows，需在 Windows 机器上执行）。
+- 升级 DeepSeek Harness 内核：修改 `package.json` 里 `@deepseek-ai/dsh` 及
+  各 `@deepseek-ai/dsh-*` 的版本号后 `npm install`，再重新打包。
+  当前 npm 最新版为 `0.1.0-rc.6`（本项目已是最新）。
+- **安装后的应用内内核升级（无需重新打包）**：打包安装版打开
+  「帮助 → 检查内核更新…」，应用会用随包分发的 npm 从仓库下载新内核，
+  安装到用户数据目录 `USER_DATA/kernel/<版本>/`，成功后自动重启服务。
+  内核文件在用户数据目录，卸载/覆盖安装应用不影响；若升级目录损坏或
+  打包自带内核更新，会自动回退到打包自带版本。
+- 分发给终端用户的更新：目前未配置自动更新（electron-updater），
+  重新打包后把新安装包发给用户覆盖安装即可（用户数据在
+  `%APPDATA%` / `~/Library/Application Support` 下，不会被覆盖）。
+  用户也可以在应用内用「检查内核更新」升级内核功能。
+
 ## 配置
 
-- **端口**：默认 `3141`。若被占用且不是 DSH 实例，自动回退到系统分配端口。
+- **端口**：默认 `3400`。若被占用且不是 DSH 实例，自动回退到系统分配端口。
   可通过修改 `electron/main.js` 中的 `DEFAULT_PORT` 调整。
-- **工作目录**：默认以项目根目录为 Harness workspace（会话、交付物落在这里）。
+- **工作目录**：开发模式 = 项目根目录；打包安装版 = 用户数据目录下的
+  `workspace`（`%APPDATA%\DeepSeek Harness Desktop\workspace` 或
+  `~/Library/Application Support/DeepSeek Harness Desktop/workspace`），
+  与安装目录无关（应用菜单「帮助 → 打开工作区目录」可直达）。
 - **DSH_HOME**：默认 `~/.dsh`，可用环境变量覆盖。
 
 ## 打包分发（给其他电脑安装）

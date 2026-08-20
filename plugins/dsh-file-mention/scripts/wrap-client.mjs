@@ -20,7 +20,6 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const clientPath = path.join(root, "lib", "client.js");
-const iconfontPath = path.join(root, "lib", "iconfont.js");
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const id = pkg.name;
@@ -31,16 +30,17 @@ if (/window\.__ModuleLoader__\.load/.test(src)) {
   process.exit(0);
 }
 
-// 1) 内联 iconfont（tsc ESM → CJS const），插到模块体顶部
+// 1) 内联 file-icons（tsc ESM → CJS const），插到模块体顶部
 let inline = "";
-if (fs.existsSync(iconfontPath)) {
-  const iconfont = fs
-    .readFileSync(iconfontPath, "utf8")
+const fileIconsPath = path.join(root, "lib", "file-icons.js");
+if (fs.existsSync(fileIconsPath)) {
+  const fileIcons = fs
+    .readFileSync(fileIconsPath, "utf8")
     .replace(/^export /gm, "");
-  inline = `${iconfont}\n`;
+  inline = `${fileIcons}\n`;
 }
 
-// 2) 去掉对 ./iconfont.js 的运行时 import（type imports 已被 tsc 擦除）
+// 2) 去掉对 ./file-icons.js 的运行时 import（type imports 已被 tsc 擦除）
 src = src.replace(/^import\s*\{[^}]*\}\s*from\s*["'][^"']+["'];\s*$/gm, "");
 
 // 3) 剥掉顶层 `export ` 关键字（apply / inject）

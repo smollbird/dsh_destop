@@ -14,14 +14,14 @@
 
 ### 二、技术选型
 
-| 组件 | 版本 | 用途 |
-|------|------|------|
-| **Electron** | 41.x | 跨平台桌面框架 |
-| **electron-builder** | 26.10.x | 打包工具 |
-| **electron-updater** | 6.8.x | 自动更新 |
-| **TypeScript** | 5.x | 类型安全 |
-| **React / Vue**（可选） | 最新 | 构建插件管理器的 UI（可内嵌在 WebView 或单独窗口） |
-| **@deepseek-ai/dsh** | 最新稳定 | DSH 核心 |
+| 组件                    | 版本     | 用途                                               |
+| ----------------------- | -------- | -------------------------------------------------- |
+| **Electron**            | 41.x     | 跨平台桌面框架                                     |
+| **electron-builder**    | 26.10.x  | 打包工具                                           |
+| **electron-updater**    | 6.8.x    | 自动更新                                           |
+| **TypeScript**          | 5.x      | 类型安全                                           |
+| **React / Vue**（可选） | 最新     | 构建插件管理器的 UI（可内嵌在 WebView 或单独窗口） |
+| **@deepseek-ai/dsh**    | 最新稳定 | DSH 核心                                           |
 
 ---
 
@@ -63,6 +63,7 @@ dsh-desktop/
 **目标**：可启动、显示 DSH Web UI、退出时清理进程。
 
 **功能点**：
+
 - 单例模式（防止多开）
 - 启动 DSH 服务（`spawn('npx', ['dsh', 'web'])`）
 - 监听服务就绪（输出 `Server running` 后创建窗口）
@@ -71,19 +72,20 @@ dsh-desktop/
 - 应用退出时终止 DSH 子进程
 
 **关键代码**：
+
 ```typescript
 // dshManager.ts
 export function startDSH(): Promise<void> {
   return new Promise((resolve) => {
-    const child = spawn('npx', ['dsh', 'web'], { stdio: 'pipe' })
-    child.stdout.on('data', (data) => {
-      if (data.toString().includes('Server running on')) {
-        resolve()
+    const child = spawn("npx", ["dsh", "web"], { stdio: "pipe" });
+    child.stdout.on("data", (data) => {
+      if (data.toString().includes("Server running on")) {
+        resolve();
       }
-    })
+    });
     // 存储进程引用以便退出时 kill
-    global.dshProcess = child
-  })
+    global.dshProcess = child;
+  });
 }
 ```
 
@@ -94,6 +96,7 @@ export function startDSH(): Promise<void> {
 **目标**：提供原生桌面应用应有的交互细节。
 
 **功能点**：
+
 - **系统托盘**：右键菜单含「显示主界面 / 打开工作区 / 新建任务 / 退出」；双击恢复窗口
 - **窗口状态记忆**：记住窗口大小、位置、最大化状态，重启后恢复
 - **主题同步**：监听系统浅色/深色模式，通过 IPC 通知渲染进程，与 DSH Web UI 主题联动
@@ -101,13 +104,14 @@ export function startDSH(): Promise<void> {
 - **启动闪屏**（可选）：加载时显示自定义 Splash 画面
 
 **核心实现**：
+
 ```typescript
 // windowManager.ts
 export function saveWindowState() {
-  const bounds = mainWindow.getBounds()
-  const maximized = mainWindow.isMaximized()
+  const bounds = mainWindow.getBounds();
+  const maximized = mainWindow.isMaximized();
   // 写入用户数据目录
-  fs.writeFileSync(statePath, JSON.stringify({ bounds, maximized }))
+  fs.writeFileSync(statePath, JSON.stringify({ bounds, maximized }));
 }
 ```
 
@@ -118,11 +122,13 @@ export function saveWindowState() {
 **目标**：在桌面应用内提供图形化插件管理界面，简化插件安装、卸载、启用/停用操作。
 
 **设计**：
+
 - 在菜单栏添加「插件管理」入口，或集成到 DSH 的设置页面（通过注入脚本）
 - 更好方案：在应用内开辟一个独立窗口或侧边栏，专门用于插件管理
 - 调用底层 `dsh plugin` 命令，并通过 stdout 解析结果
 
 **功能清单**：
+
 1. **已安装插件列表**：展示插件名称、版本、状态（启用/停用）
 2. **一键安装**：支持输入 npm 包名或 GitHub 仓库地址，自动执行 `dsh plugin add`
 3. **一键卸载**：执行 `dsh plugin remove`
@@ -131,37 +137,39 @@ export function saveWindowState() {
 6. **搜索社区插件**：可调用 GitHub API 搜索 `topic:dsh-plugin` 仓库（可选）
 
 **技术实现**：
+
 - 在 `pluginManager.ts` 中封装命令执行函数：
 
 ```typescript
 // pluginManager.ts
-import { exec } from 'child_process'
-import { promisify } from 'util'
-const execAsync = promisify(exec)
+import { exec } from "child_process";
+import { promisify } from "util";
+const execAsync = promisify(exec);
 
-export async function listPlugins(profile = 'web') {
-  const { stdout } = await execAsync(`dsh plugin --profile ${profile} list`)
-  return parsePluginList(stdout)
+export async function listPlugins(profile = "web") {
+  const { stdout } = await execAsync(`dsh plugin --profile ${profile} list`);
+  return parsePluginList(stdout);
 }
 
-export async function addPlugin(packageName: string, profile = 'web') {
-  await execAsync(`dsh plugin --profile ${profile} add ${packageName}`)
+export async function addPlugin(packageName: string, profile = "web") {
+  await execAsync(`dsh plugin --profile ${profile} add ${packageName}`);
 }
 
-export async function removePlugin(packageName: string, profile = 'web') {
-  await execAsync(`dsh plugin --profile ${profile} remove ${packageName}`)
+export async function removePlugin(packageName: string, profile = "web") {
+  await execAsync(`dsh plugin --profile ${profile} remove ${packageName}`);
 }
 
 // 可能需要重启服务
 export async function restartDSH() {
-  await stopDSH()
-  await startDSH()
+  await stopDSH();
+  await startDSH();
 }
 ```
 
 - **UI 实现**：使用 React/Vue 构建一个独立页面，通过 `webPreferences.preload` 暴露 `window.pluginAPI` 供渲染进程调用
 
 **用户体验**：
+
 - 安装插件后自动提示重启服务，并提供「立即重启」按钮
 - 显示操作日志，方便排查错误
 
@@ -172,12 +180,14 @@ export async function restartDSH() {
 **目标**：应用自身可自动下载并安装新版本。
 
 **功能点**：
+
 - 使用 `electron-updater` 配置更新源（GitHub Releases 或自建服务器）
 - 启动时检查更新，发现新版本时弹窗提示
 - 支持静默下载、进度显示、安装后重启
 - 设置中提供「检查更新」手动按钮
 
 **配置示例**：
+
 ```json
 // package.json build.publish
 "publish": {
@@ -195,6 +205,7 @@ export async function restartDSH() {
 **目标**：生成各平台安装包，发布到 GitHub Releases 并配置更新元数据。
 
 **命令**：
+
 ```bash
 npm run build:mac   # 生成 .dmg 和 .zip
 npm run build:win   # 生成 NSIS 安装包 .exe
@@ -202,6 +213,7 @@ npm run build:linux # 生成 AppImage 和 .deb
 ```
 
 **配置要点**：
+
 - 代码签名（macOS 和 Windows 需要开发者证书）
 - 图标、应用名称、描述等信息填写完整
 - 包含 `electron-updater` 所需的 `latest.yml` / `latest-mac.yml`
@@ -213,6 +225,7 @@ npm run build:linux # 生成 AppImage 和 .deb
 **目标**：根据用户反馈持续完善。
 
 **可能的方向**：
+
 - 支持自定义 DSH 配置文件路径
 - 多 profile 切换（`web` / `cli` 等）
 - 全局快捷键（如 `Cmd+Shift+Space` 呼出窗口）
@@ -221,16 +234,23 @@ npm run build:linux # 生成 AppImage 和 .deb
 
 ---
 
+#### 🟤 Phase 7：托盘能力增强
+
+**功能清单**：
+
+1. 展示当前正在进行的对话(可多个)，点击打开界面并定位到对应的对话中
+2. 系统级通知功能，当对话出现需要用户手动操作进行通知，如需要用户授权，执行命令，等中断，暂停情况，如当轮对话模型回答完毕时等情况。
+
 ### 五、开发里程碑
 
-| 阶段 | 周期 | 核心产出 |
-|------|------|---------|
-| **Phase 1: MVP** | 1 周 | 基础窗口 + DSH 启动/停止 + 退出清理 |
-| **Phase 2: 桌面增强** | 1 周 | 托盘、窗口状态、主题同步、闪屏（可选） |
+| 阶段                    | 周期   | 核心产出                                    |
+| ----------------------- | ------ | ------------------------------------------- |
+| **Phase 1: MVP**        | 1 周   | 基础窗口 + DSH 启动/停止 + 退出清理         |
+| **Phase 2: 桌面增强**   | 1 周   | 托盘、窗口状态、主题同步、闪屏（可选）      |
 | **Phase 3: 插件管理器** | 1.5 周 | UI 界面 + 底层命令封装 + 安装/卸载/列表功能 |
-| **Phase 4: 自动更新** | 1 周 | electron-updater 集成 + 更新服务器配置 |
-| **Phase 5: 打包发布** | 3-5 天 | 多平台打包 + 签名 + GitHub Releases 部署 |
-| **Phase 6: 优化迭代** | 持续 | 收集反馈，修复问题，增加新特性 |
+| **Phase 4: 自动更新**   | 1 周   | electron-updater 集成 + 更新服务器配置      |
+| **Phase 5: 打包发布**   | 3-5 天 | 多平台打包 + 签名 + GitHub Releases 部署    |
+| **Phase 6: 优化迭代**   | 持续   | 收集反馈，修复问题，增加新特性              |
 
 **总预估工期**：约 5-6 周（单人全职开发）
 

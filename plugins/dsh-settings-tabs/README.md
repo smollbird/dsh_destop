@@ -20,6 +20,32 @@
   - **快速添加**：内联表单（serverName + transport + command/args 或 url），
     客户端/服务端双重校验；保存后**立即生效**并**持久化**。
   - **删除**：两步确认；条目上的「已持久化 / 快速添加」徽标标明来源。
+   - **启用 / 禁用切换**：卡片上「禁用 / 启用」按钮（Loader 无 enable/disable API，
+     停用 = 停掉并移除活动条目 + patch 层写 `disabled: true`；启用 = 从 patch 配置
+     重建条目，重启后状态一致）。
+   - **连通性状态点**：卡片上的状态点每 30s 自动探测一次——stdio 为 spawn 命令
+     （存活/干净退出=可达，崩溃/ENOENT=不可达），streamable-http 为 HTTP 探测
+     （任何响应=可达，refused/timeout=不可达）；绿=可达、红=失败、灰=未检查/已停用。
+     连续 5 次失败后停止该条的自动检查，点红点可手动重新检查。探测失败时
+     红点旁出现「自动补全环境」按钮（stdio 专属）：重新探测，若可达则把探测
+     所用的修复环境（PATH 增强 + uv 目录重定向）持久化进 patch 行——patch 层
+     条目（id 含 `:`）需重启后对运行中的实例生效，响应带 `pendingRestart`。
+     失败详情会带上 stderr 首行，hover 红点即可看到具体报错。
+   - **transport 标签**：与「已启用」同款绿色胶囊样式。
+ - **外部智能体同步**（两个 tab 顶部的「外部智能体同步」区）：
+   - **技能**：扫描 `~/.claude/skills`、`~/.codex/skills`、
+      `~/.config/opencode/skills`、`~/.cursor/skills-cursor`、`~/.agents/skills`、
+      `~/.agent/skills` 以及项目根（host cwd）下的 `.agent/skills`、`.agents/skills`
+     （统一的 `<dir>/<name>/SKILL.md` 布局，frontmatter 解析 description，
+     支持 `>-`/`|` 折叠块）；按名称去重后列出来源 agent 与描述，一键
+     **符号链接**安装到 `~/.dsh/skills`（skill-filesystem 本就扫描该根，
+     装完即出现在技能目录），再点一次即移除（只删 symlink，拒删真实目录）。
+   - **MCP**：解析 `~/.claude.json`、`~/.claude/settings.json` 的 `mcpServers`、
+     `~/.config/opencode/opencode.json` 的 `mcp`（local=command 数组、
+     remote=url+headers）、`~/.codex/config.toml` 的 `[mcp_servers.*]`
+     （含 env 子表/内联表）、`~/.cursor/mcp.json` 的 `mcpServers`；
+     归一化为 stdio(command+args+env) / streamable-http(url+headers→env)，
+     标注「DSH 已配置」去重状态，一键走既有 POST 导入（patch 行 + 热装配）。
 
 ## 同步目标：cordis.patch.yml（不是 settings.yaml）
 
@@ -42,8 +68,172 @@ MCP 服务器是 **loader 插件实例**（`mcp-client`），不是 settings 命
 
 | 文件 | 半边 | 职责 |
 |---|---|---|
-| `src/index.ts` | host（`exports "."`） | `/settings-tabs/skills`（技能目录）、`/settings-tabs/mcp` GET/POST/DELETE（列表 / 快速添加 / 删除，patch 文件读写 + loader 热装配） |
-| `src/client.tsx` | browser（`exports "./client"`，`dsh.client` manifest） | 两个 tab 注册；MCP tab 的快速添加表单与删除交互 |
+| `src/index.ts` | host（`exports "."`） | `/settings-tabs/skills`（技能目录）、`/settings-tabs/mcp` GET/POST/DELETE（列表 / 快速添加 / 删除 / 启停 / 连通性检查，patch 文件读写 + loader 热装配）、`/settings-tabs/sync/skills` 与 `/settings-tabs/sync/mcp` GET（外部智能体扫描）、`/settings-tabs/skills/install` POST/DELETE（symlink 安装/移除） |
+| `src/client.tsx` | browser（`exports "./client"`，`dsh.client` manifest） | 两个 tab 注册；MCP tab 的快速添加表单与删除交互；两个 tab 顶部的「外部智能体同步」区 |
+|
+ 
+`
+s
+r
+c
+/
+s
+y
+n
+c
+-
+s
+o
+u
+r
+c
+e
+s
+.
+t
+s
+`
+ 
+|
+ 
+h
+o
+s
+t
+ 
+|
+ 
+外
+部
+智
+能
+体
+扫
+描
+：
+s
+k
+i
+l
+l
+ 
+目
+录
+（
+c
+l
+a
+u
+d
+e
+/
+c
+o
+d
+e
+x
+/
+o
+p
+e
+n
+c
+o
+d
+e
+/
+c
+u
+r
+s
+o
+r
+/
+.
+a
+g
+e
+n
+t
+s
+）
++
+ 
+M
+C
+P
+ 
+配
+置
+（
+c
+l
+a
+u
+d
+e
+.
+j
+s
+o
+n
+/
+o
+p
+e
+n
+c
+o
+d
+e
+.
+j
+s
+o
+n
+/
+c
+o
+n
+f
+i
+g
+.
+t
+o
+m
+l
+/
+m
+c
+p
+.
+j
+s
+o
+n
+）
+归
+一
+化
+ 
++
+ 
+s
+y
+m
+l
+i
+n
+k
+ 
+安
+装
+/
+移
+除
+ 
+|
 | `src/react-shim.d.ts` | 类型 | react / react/jsx-runtime 与环境 JSX 命名空间的极简类型（桌面 node_modules 无 @types/react） |
 | `src/slots-contract.d.ts` | 类型 | `settings.skillsMcp` locale 命名空间声明 |
 | `scripts/mcp-echo-server.mjs` | 演示 | 极简 MCP stdio 服务器（echo/now 两个工具），用于测试快速添加 |

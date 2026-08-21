@@ -58,6 +58,8 @@ export interface McpServerView {
     persistent: boolean;
     /** Whether this entry was created by the quick-add (id `mcp-<name>` at loader root). */
     managed: boolean;
+    /** Extra environment variables / response headers carried by the config. */
+    env?: Record<string, string>;
 }
 /** Required host services: the web route registry and the loader (entry enumeration + hot create/remove). */
 export declare const inject: string[];
